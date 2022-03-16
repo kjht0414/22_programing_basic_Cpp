@@ -232,7 +232,7 @@ void DrawBitmapCursor(HDC hdc, HBITMAP bitmap) {
 }
 
 
-
+int a = 0;
 unsigned _stdcall draw_process(void* arg) {
 	RECT window_rect;
 	DRAWPROCESS_ARG* draw_process_arg = (DRAWPROCESS_ARG*)arg;
@@ -250,7 +250,7 @@ unsigned _stdcall draw_process(void* arg) {
 		BITMAPDRAWS* head = bitmap_draws;
 		while (head != NULL) {
 			HBITMAP* bitmap = head->bitmap;
-			int x = head->x, y = head->y;
+			int x = head->x+ a, y = head->y;
 			DrawBitmap(*hdc, *bitmap, x, y);
 			head = head->next;
 		}
