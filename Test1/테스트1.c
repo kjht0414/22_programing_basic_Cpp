@@ -38,10 +38,63 @@ int main() {//main function , int : integer (정수)
 
 	//자료의 사칙연산 + - * /
 
-	float big_moon;
+	/*float big_moon;
 	big_moon = 30;
 	big_moon = big_moon + 1.2;
 	
-	printf("큰달 = %.1f;\n", big_moon);
+	printf("큰달 = %.1f;\n", big_moon);*/
+
+	//1.c 시작
+
+	//
+	//int a, b;
+	//a = 365;
+	//b = 366;
+	//int c;
+	//if (a > b) { // >= < <= != ==
+	//	c = 1;
+	//}
+	//else if (a == b) {
+	//	c = 2;
+	//}
+	//else{
+	//	c = 3;
+	//}
+
+
+	//// for 문 
+	//int result=0;
+	//int n;
+	//// 1부터 n까지의 누적합 구하기
+	//printf("n값을 입력하세요 : ");
+	//scanf_s("%d",&n);
+	//for (int i = 0; i <= n; i++) {   //++i
+	//	result += i;
+	//}
+	//
+	//printf("1부터 %d까지의 덧셈 : %d\n",n, result);
+
+
+	//연습 : 단입력을 받고 구구단 계산을 해보시오.
+
+	/*int multi ,result=0;
+	printf("값을 입력 : ");
+	scanf_s("%d", &multi);
+	for (int i = 1; i < 10; i++) {
+		printf("%d x %d = %d \n",multi , i ,i*multi);
+	}*/
+
+	// 1부터 n까지의 누적합 구하기 (while version)
+	int n ,result=0 ,count=1;
+	printf("값을 입력 : ");
+	scanf_s("%d", &n);
+
+	while (count <= n) {
+		result += count;
+		count++;
+	}
+
+	printf("1부터 %d까지의 덧셈 : %d\n", n, result);
 
 }
+
