@@ -153,15 +153,10 @@ int main() {//main function , int : integer (정수)
 
 	int dan;
 	int result[9];
-	int i=0;
-	while (i < 9) {
-		result[i] = 0;
-		i++;
-	}
+	int i=1;
 	printf("단값(2~9): ");
 	scanf_s("%d", &dan);
 
-	i = 1;
 	while (i <= 9) {
 		result[i - 1] = dan * i;
 		i++;
