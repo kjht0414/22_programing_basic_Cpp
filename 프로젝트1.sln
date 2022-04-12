@@ -9,6 +9,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Test1", "Test1\Test1.vcxpro
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Test2", "Test2\Test2.vcxproj", "{58EDB975-0C08-404E-AAD4-185780CD07FD}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Opengl1", "Opengl1\Opengl1.vcxproj", "{CF82091D-11C1-46F5-9853-FC0E5643A362}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -41,6 +43,14 @@ Global
 		{58EDB975-0C08-404E-AAD4-185780CD07FD}.Release|x64.Build.0 = Release|x64
 		{58EDB975-0C08-404E-AAD4-185780CD07FD}.Release|x86.ActiveCfg = Release|Win32
 		{58EDB975-0C08-404E-AAD4-185780CD07FD}.Release|x86.Build.0 = Release|Win32
+		{CF82091D-11C1-46F5-9853-FC0E5643A362}.Debug|x64.ActiveCfg = Debug|x64
+		{CF82091D-11C1-46F5-9853-FC0E5643A362}.Debug|x64.Build.0 = Debug|x64
+		{CF82091D-11C1-46F5-9853-FC0E5643A362}.Debug|x86.ActiveCfg = Debug|Win32
+		{CF82091D-11C1-46F5-9853-FC0E5643A362}.Debug|x86.Build.0 = Debug|Win32
+		{CF82091D-11C1-46F5-9853-FC0E5643A362}.Release|x64.ActiveCfg = Release|x64
+		{CF82091D-11C1-46F5-9853-FC0E5643A362}.Release|x64.Build.0 = Release|x64
+		{CF82091D-11C1-46F5-9853-FC0E5643A362}.Release|x86.ActiveCfg = Release|Win32
+		{CF82091D-11C1-46F5-9853-FC0E5643A362}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
