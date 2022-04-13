@@ -22,15 +22,12 @@ int main() {
     // window가 두개이면 context가 두개일수도 있음
     // 그러면 어떤 context로 그릴지 정해줘야 함
     glfwMakeContextCurrent(window);
-
+    render(window);
     // 사용자가 window 창을 닫을 때까지
     while (!glfwWindowShouldClose(window)) {
-        // window 그려주기
-        //render(window);
-        glClear(GL_COLOR_BUFFER_BIT);
-
-
-        glfwSwapBuffers(window);
+        // window 그려주기        
+        
+        
         // 마우스 움직이는 것. 이런것들 들고와서 필요한 window한테 보내주기
         glfwPollEvents();
     }
@@ -39,17 +36,18 @@ int main() {
     glfwDestroyWindow(window);
     glfwTerminate();
 }
-
+GLuint VertexArrayID;
+GLuint vertexbuffer;
 void render(GLFWwindow* window) {
     /* Render here */
     glClear(GL_COLOR_BUFFER_BIT);
 
-    GLuint VertexArrayID;
+    
     glGenVertexArrays(1, &VertexArrayID);
     glBindVertexArray(VertexArrayID);
 
     // 이것이 우리의 버텍스 버퍼를 가리킵니다.
-    GLuint vertexbuffer;
+    
     // 버퍼를 하나 생성합니다. vertexbuffer 에 결과 식별자를 넣습니다
     glGenBuffers(1, &vertexbuffer);
     // 아래의 명령어들은 우리의 "vertexbuffer" 버퍼에 대해서 다룰겁니다
