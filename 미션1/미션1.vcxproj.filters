@@ -21,5 +21,8 @@
     <ClCompile Include="성적관리_프로그램v1-2.c">
       <Filter>소스 파일</Filter>
     </ClCompile>
+    <ClCompile Include="실험용.c">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>
