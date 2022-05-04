@@ -27,5 +27,8 @@
     <ClCompile Include="4월27알.c">
       <Filter>소스 파일</Filter>
     </ClCompile>
+    <ClCompile Include="5월4일.c">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>
