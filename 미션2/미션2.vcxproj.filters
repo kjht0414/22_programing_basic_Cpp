@@ -15,22 +15,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="4월6일.c">
-      <Filter>소스 파일</Filter>
-    </ClCompile>
-    <ClCompile Include="4월13일.c">
-      <Filter>소스 파일</Filter>
-    </ClCompile>
-    <ClCompile Include="4월20일.c">
-      <Filter>소스 파일</Filter>
-    </ClCompile>
-    <ClCompile Include="4월27알.c">
-      <Filter>소스 파일</Filter>
-    </ClCompile>
-    <ClCompile Include="5월4일.c">
-      <Filter>소스 파일</Filter>
-    </ClCompile>
-    <ClCompile Include="5월11일.cpp">
+    <ClCompile Include="성적관리_프로그램v2.c">
       <Filter>소스 파일</Filter>
     </ClCompile>
   </ItemGroup>

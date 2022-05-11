@@ -2,7 +2,7 @@
 #include<stdlib.h>
 #include<memory.h>
 
-struct LinkedList{
+struct LinkedList {
 	void* data;
 	struct LinkedList* next;
 };
@@ -40,14 +40,15 @@ int request_linked_index();
 
 struct LinkedList* append_linked(struct LinkedList* dst);
 struct LinkedList* points2linked(void* src, int unit, int size);
+int linked2points(struct LinkedList* src, void* p);
 struct LinkedList* insert_linked(struct LinkedList* dst, struct LinkedList* src, int index);
 int length_linked(struct LinkedList* node);
 
 
 int main() {
 	char commend[1024];
-	
-	
+
+
 	while (1) {
 		scanf_s(" %[^\n]", commend, 1024);
 		if (same_string(commend, "/subjects")) {
@@ -74,13 +75,20 @@ int main() {
 			set_students();
 		}
 		else if (same_string(commend, "/help")) {
-			printf("help\n");
+			printf("/subjects");
+			printf("/append subject");
+			printf("/insert subject");
+			printf("/modify subject");
+			printf("/set subjects");
+
+			printf("/students");
+			printf("/set students");
 		}
 		else {
-
+			printf("If you want to know commands, input /help for help\n");
 		}
 	}
- }
+}
 
 int get_str_size(char* str) {
 	int count = 0;
@@ -122,7 +130,7 @@ void print_subjects() {
 		return;
 	}
 
-	struct LinkedList* node= subjects;
+	struct LinkedList* node = subjects;
 	int subject_code = 0;
 	do {
 		printf("[%d]%s\n", subject_code, *(char**)(node->data));
@@ -135,17 +143,17 @@ void set_subjects() {
 	char** subjects_pointer;
 	printf("subjects size:");
 	scanf_s("%d", &subjects_size);
-	subjects_pointer = malloc(sizeof(char*) * (subjects_size ));
+	subjects_pointer = malloc(sizeof(char*) * (subjects_size));
 	for (int i = 0; i < subjects_size; i++) {
 		char name[256];
-		printf("(%d/%d)-th subject's name:", i+1, subjects_size);
+		printf("(%d/%d)-th subject's name:", i + 1, subjects_size);
 		scanf_s("%s", name, 256);
 		*(subjects_pointer + i) = malloc(sizeof(char) * (get_str_size(name) + 1));
-		str_copy(*(subjects_pointer + i),name);
+		str_copy(*(subjects_pointer + i), name);
 	}
-	
-	 subjects = points2linked(subjects_pointer, sizeof(char*), subjects_size);
-	 free(subjects_pointer);
+
+	subjects = points2linked(subjects_pointer, sizeof(char*), subjects_size);
+	free(subjects_pointer);
 }
 
 void modify_subject() {
@@ -163,7 +171,7 @@ void modify_subject() {
 		node = node->next;
 	}
 	printf("subject name:");
-	scanf_s("%s",name,256);
+	scanf_s("%s", name, 256);
 	free(*(char**)(node->data));
 	*(char**)node->data = malloc(sizeof(char) * (get_str_size(name) + 1));
 	str_copy(*(char**)node->data, name);
@@ -175,7 +183,7 @@ void insert_subject() {
 		return 0;
 	}
 	struct LinkedList* node = subjects;
-	for (int i = 0; i < subjects_index-1; i++) {
+	for (int i = 0; i < subjects_index - 1; i++) {
 		if (!node->next) {
 			printf("index was over length of subjects\n");
 			return;
@@ -254,13 +262,13 @@ struct LinkedList* points2linked(void* src, int unit, int size) {
 	struct LinkedList* node;
 	result = malloc(sizeof(struct LinkedList));
 	result->data = malloc(unit);
-	byte_copy((char*)result->data, ((char*)src)+0, unit);
+	byte_copy((char*)result->data, ((char*)src) + 0, unit);
 	result->next = 0;
 	node = result;
 	for (int i = 1; i < size; i++) {
-		node=append_linked(node);
+		node = append_linked(node);
 		node->data = malloc(unit);
-		byte_copy((char*)node->data, ((char*)src)+i*unit, unit);
+		byte_copy((char*)node->data, ((char*)src) + i * unit, unit);
 	}
 	return result;
 }
@@ -280,7 +288,7 @@ struct LinkedList* insert_linked(struct LinkedList* dst, struct LinkedList* src,
 		temp = node->next;
 		node->next = src;
 	}
-	
+
 	while (node->next) {
 		node = node->next;
 	}
@@ -308,7 +316,8 @@ void print_students() {
 	if (!subjects) {
 		printf("you need to set_subjects\n");
 		return;
-	}else if (!students) {
+	}
+	else if (!students) {
 		printf("you need to set_students\n");
 		return;
 	}
@@ -320,7 +329,7 @@ void print_students() {
 	printf("name\tid");
 	do {
 		char* subject_name = *(char**)subjects_node->data;
-		printf("\t%s",subject_name);
+		printf("\t%s", subject_name);
 		subjects_length++;
 	} while (subjects_node = subjects_node->next);
 	printf("\n");
@@ -336,14 +345,14 @@ void print_students() {
 
 void set_students() {
 	char name[256];
-	int length,count=0,subjects_length=length_linked(subjects);
+	int length, count = 0, subjects_length = length_linked(subjects);
 	struct Student* student;
 	printf("when you want to stop, input /end\n");
 	while (1)
 	{
 		printf("input students's name:");
 		scanf_s(" %[^\n]", name, 256);
-		if (same_string(name,"/end")) {
+		if (same_string(name, "/end")) {
 			break;
 		}
 		student = malloc(sizeof(struct Student));
@@ -359,7 +368,7 @@ void set_students() {
 			(struct Student*)students->data = student;
 		}
 		else {
-			struct LinkedList* new_linked=append_linked(students);
+			struct LinkedList* new_linked = append_linked(students);
 			(struct Student*)new_linked->data = student;
 		}
 	}
