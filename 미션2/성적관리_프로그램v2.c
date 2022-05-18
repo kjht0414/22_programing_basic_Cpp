@@ -23,6 +23,7 @@ int get_str_size(char* str);
 void str_copy(char* dst, char* src);
 int same_string(char* a, char* b);
 void byte_copy(char* dst, char* src, int size);
+int str_euc_compare(char* big, char* small);
 
 struct LinkedList* subjects = 0;
 void print_subjects();
@@ -35,17 +36,42 @@ void append_subject();
 struct LinkedList* students = 0;
 void print_students();
 void set_students();
+void sort_students_by_name();
 
 int request_linked_index();
 
 struct LinkedList* append_linked(struct LinkedList* dst);
 struct LinkedList* points2linked(void* src, int unit, int size);
-int linked2points(struct LinkedList* src, void* p);
+void* linked2points(struct LinkedList* src, int unit, int* length);
 struct LinkedList* insert_linked(struct LinkedList* dst, struct LinkedList* src, int index);
 int length_linked(struct LinkedList* node);
+struct LinkedList* pop_linked(struct LinkedList* node, int index);
+void delete_linked(struct LinkedList* node);
 
 
 int main() {
+	int aa[] = { 1,2,3,4,5 };
+	struct LinkedList* source = points2linked(aa, sizeof(int), 5);
+	struct LinkedList* head = source;
+	do {
+		printf("%d ", *(int*)head->data);
+	} while (head = head->next);
+	printf("\n");
+
+	
+	struct LinkedList* pop = pop_linked(source, -1);
+	printf("%d\n", *(int*)pop->data);
+	free(pop);
+	int length;
+	int* bb = linked2points(source, sizeof(int), &length);
+	for (int i = 0; i < length; i++) {
+		printf("%d ", bb[i]);
+	}
+	printf("\n");
+
+	delete_linked(source);
+	free(bb);
+
 	char commend[1024];
 
 
@@ -67,12 +93,13 @@ int main() {
 			set_subjects();
 		}
 		else if (same_string(commend, "/students")) {
-			printf("a");
 			print_students();
 		}
 		else if (same_string(commend, "/set students")) {
-			printf("b");
 			set_students();
+		}
+		else if (same_string(commend, "/sort students by name")) {
+			sort_students_by_name();
 		}
 		else if (same_string(commend, "/help")) {
 			printf("/subjects");
@@ -273,6 +300,18 @@ struct LinkedList* points2linked(void* src, int unit, int size) {
 	return result;
 }
 
+void* linked2points(struct LinkedList* src, int unit, int* length) {
+	struct LinkedList* head = src;
+	void* result;
+	*length = length_linked(head);
+	result = malloc(unit * (*length));
+	for (int i = 0; i < *length; i++) {
+		byte_copy(((char*)result) + i * unit, (char*)head->data, unit);
+		head = head->next;
+	}
+	return result;
+}
+
 struct LinkedList* insert_linked(struct LinkedList* dst, struct LinkedList* src, int index) {
 	struct LinkedList* node;
 	struct LinkedList* temp;
@@ -310,6 +349,38 @@ int length_linked(struct LinkedList* node) {
 		count++;
 	}
 	return count;
+}
+
+struct LinkedList* pop_linked(struct LinkedList* node, int index) {
+	struct LinkedList* head = node;
+	int length = length_linked(node);
+	index = length + index;
+	index %= length;
+
+	if (index == 0) {
+		return head;
+	}
+	else {
+		struct LinkedList* temp = 0;
+		for (int i = 0; i < index - 1; i++) {
+			head = head->next;
+		}
+		temp = head->next;
+		head->next = head->next->next;
+		return temp;
+	}
+}
+
+void delete_linked(struct LinkedList* node) {
+	if (node == 0)return;
+	struct LinkedList* pop = 0;
+	while (pop != node) {
+		if (pop != 0) {
+			free(pop);
+		}
+		pop = pop_linked(node, -1);
+	}
+	free(pop);
 }
 
 void print_students() {
@@ -372,4 +443,73 @@ void set_students() {
 			(struct Student*)new_linked->data = student;
 		}
 	}
+}
+
+void sort_students_by_name() {
+	if (!subjects) {
+		printf("you need to set_subjects\n");
+		return;
+	}
+	else if (!students) {
+		printf("you need to set_students\n");
+		return;
+	}
+
+	struct LinkedList* node = students;
+	int len;
+	struct Student* students_array = linked2points(node, sizeof(struct Student), &len);
+	//버블 소트
+	for (int i = len-1; i > 0; i--) {
+		for (int j = 0; j < i; j++) {
+			int compare = str_euc_compare(students_array[j].name, students_array[j + 1].name);
+			if (compare == 1) {
+				struct Student temp;
+				temp = students_array[j];
+				students_array[j] = students_array[j + 1];
+				students_array[j + 1] = temp;
+			}
+		}
+	}
+
+	delete_linked(students);
+	students = points2linked(students_array, sizeof(struct Student), len);
+}
+
+int str_euc_compare(char* big, char* small) {
+	int b_count = 0, s_count = 0;
+	int b_num = 0, s_num = 0;
+
+
+	while(big[b_count]  && small[s_count]){
+		if (big[b_count] & 0x80) {
+			b_num = (unsigned char)big[b_count];
+			b_num << 8;
+			b_num += (unsigned char)big[b_count + 1];
+			b_count += 2;
+		}
+		else {
+			b_num = (unsigned char)big[b_count];
+			b_count += 1;
+		}
+
+		if (small[s_count] & 0x80) {
+			s_num = (unsigned char)small[s_count];
+			s_num << 8;
+			s_num += (unsigned char)small[s_count + 1];
+			s_count += 2;
+		}
+		else {
+			s_num = (unsigned char)small[s_count];
+			s_count += 1;
+		}
+
+		if (b_num > s_num) {
+			return -1;
+		}
+		else if (b_num < s_num) {
+			return 1;
+		}
+	}
+
+	return 0;
 }

@@ -45,6 +45,18 @@ int length_linked(struct LinkedList* node);
 
 
 int main() {
+	char s[] = "¾È";
+	int size = get_str_size(s);
+	printf("%d\n", size);
+	
+	printf("%u\n", (unsigned char)s[0]);
+	printf("%u\n", (unsigned char)s[1]);
+
+	unsigned int num = (unsigned char)s[0];
+	num <<= 8;
+	num += (unsigned char)s[1];
+	printf("%u\n", num);
+
 	char commend[1024];
 	
 	
