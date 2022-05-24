@@ -49,10 +49,12 @@ void append_subject();
 struct LinkedList* students = 0;
 void print_students();
 void set_students();
+void sort_students();
+
 int sort_compare_by_option(struct Student* f, struct Student* b,int option, void* args);
 int compare_grade(struct Student* f, struct Student* b, int subject_code);
 int compare_grade_avarage(struct Student* f, struct Student* b, int* subject_codes);
-void sort_students(int option, void* args);
+void sort_students_optoin(int option, void* args);
 
 
 void save_by_file_path(char* path);
@@ -141,64 +143,7 @@ int main() {
 			set_students();
 		}
 		else if (command_splits_length >= 2 && same_string(command_splits[0],"/sort") && same_string(command_splits[1], "students")) {
-			
-			if (command_splits_length == 2 || str2int(command_splits[2]) > 3) {
-				printf("you didn't input right way.\n");
-				printf("[example]\n");
-				printf("sort students [sort rule code] arg0 arg1 arg2 ...  [reverse = r]\n");
-				printf("[codes]\n");
-				printf("[0]by name\n");
-				printf("[1]by id\n");
-				printf("[2]by grade\n");
-				printf("[3]by avarage\n");
-				printf("args is the code for each subject to be calculated.\n");
-				continue;
-			}
-			int code = str2int(command_splits[2]);
-			int isReverse = 0;
-			int args_length=0;
-			void* args = 0;
-			struct LinkedList* args_linked = 0;
-			struct LinkedList* tail = 0;
-
-			for (int i = 3; i < command_splits_length; i++) {
-				if (isInt(command_splits[i])) {
-					struct LinkedList* arg = malloc(sizeof(struct LinkedList));
-					memset(arg, 0, sizeof(struct LinkedList));
-					if (args_linked == 0) {
-						args_linked = arg;
-						tail = args_linked;
-					}
-					else {
-						tail->next = arg;
-						tail = tail->next;
-					}
-					tail->data = malloc(sizeof(int));
-					*(int*)tail->data = str2int(command_splits[i]);
-				}
-				else if(same_string(command_splits[i],"r") || same_string(command_splits[i], "reverse")) {
-					isReverse = 1;
-				}
-				else {
-					//error 예외처리
-				}
-			}
-
-			if (args_linked == 0) {
-				args = 0;
-			}
-			else {
-				tail->next = malloc(sizeof(struct LinkedList));
-				memset(tail->next, 0, sizeof(struct LinkedList));
-				tail = tail->next;
-				tail->data = malloc(sizeof(int));
-				*(int*)tail->data = -1;
-				args = linked2points(args_linked, sizeof(int), args_length);
-				delete_linked(args_linked);
-			}
-
-			sort_students(code,args);
-			free(args);
+			sort_students(command_splits, command_splits_length);
 		}
 		else if (same_string(commend, "/save")) {
 			if (!subjects) {
@@ -664,7 +609,7 @@ int compare_grade_avarage(struct Student* f, struct Student* b, int* subject_cod
 	}
 }
 
-void sort_students(int option, void* args) {
+void sort_students_optoin(int option, void* args) {
 	if (!subjects) {
 		printf("you need to set_subjects\n");
 		return;
@@ -909,4 +854,112 @@ int isInt(char* str) {
 		count++;
 	}
 	return 1;
+}
+
+int is_sort_arg_right(int option,void* args,int args_length) {
+	int subjects_length = length_linked(subjects);
+	switch (option) {
+	case COMPARE_NAME:
+		return args_length == 1;
+		break;
+	case COMPARE_ID:
+		return args_length == 1;
+		break;
+	case COMPARE_GRADE:
+		return args_length == 2 && ((int*)args)[1] < subjects_length && ((int*)args)[1] >= 0;
+		break;
+	case COMPARE_GRADE_AVARAGE:
+		if (args_length >= 3) {
+			for (int i = 0; i < args_length - 1; i++) {
+				if (((int*)args)[i] < subjects_length && ((int*)args)[i] >= 0) {
+
+				}
+				else {
+					return 0;
+				}
+			}
+			return 1;
+		}
+		return 0;
+		break;
+	}
+}
+
+void sort_students(char** command_splits,int command_splits_length) {
+	if (!subjects) {
+		printf("you need to set_subjects\n");
+		return;
+	}
+	else if (!students) {
+		printf("you need to set_students\n");
+		return;
+	}
+
+
+	if (command_splits_length == 2 || str2int(command_splits[2]) > 3) {
+		printf("you didn't input right way.\n");
+		printf("[example]\n");
+		printf("sort students [sort rule code] arg0 arg1 arg2 ...  [reverse = r]\n");
+		printf("[codes]\n");
+		printf("[0]by name\n");
+		printf("[1]by id\n");
+		printf("[2]by grade\n");
+		printf("[3]by avarage\n");
+		printf("args is the code for each subject to be calculated.\n");
+		return;
+	}
+	int code = str2int(command_splits[2]);
+	int isReverse = 0;
+	int args_length = 0;
+	void* args = 0;
+	struct LinkedList* args_linked = 0;
+	struct LinkedList* tail = 0;
+
+	for (int i = 3; i < command_splits_length; i++) {
+		if (isInt(command_splits[i])) {
+			struct LinkedList* arg = malloc(sizeof(struct LinkedList));
+			memset(arg, 0, sizeof(struct LinkedList));
+			if (args_linked == 0) {
+				args_linked = arg;
+				tail = args_linked;
+			}
+			else {
+				tail->next = arg;
+				tail = tail->next;
+			}
+			tail->data = malloc(sizeof(int));
+			*(int*)tail->data = str2int(command_splits[i]);
+		}
+		else if (same_string(command_splits[i], "r") || same_string(command_splits[i], "reverse")) {
+			isReverse = 1;
+		}
+		else {
+			printf("[error] worng args => \"%s\".\n", command_splits[i]);
+			delete_linked(args_linked);
+			return;
+		}
+	}
+
+	if (args_linked == 0) {
+		args = 0;
+	}
+	else {
+		tail->next = malloc(sizeof(struct LinkedList));
+		memset(tail->next, 0, sizeof(struct LinkedList));
+		tail = tail->next;
+		tail->data = malloc(sizeof(int));
+		*(int*)tail->data = -1;
+		args = linked2points(args_linked, sizeof(int), args_length);
+		delete_linked(args_linked);
+	}
+
+	if (is_sort_arg_right(code, args, args_length)) {
+		sort_students_optoin(code, args);
+	}
+	else {
+		printf("[error]\n");
+		printf("a number of args is wrong or subject code is wrong\n");
+	}
+	
+	free(args);
 }
