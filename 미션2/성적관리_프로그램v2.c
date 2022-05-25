@@ -51,10 +51,10 @@ void print_students();
 void set_students();
 void sort_students();
 
-int sort_compare_by_option(struct Student* f, struct Student* b,int option, void* args);
+int sort_compare_by_option(struct Student* f, struct Student* b,int option, int args_length,void* args);
 int compare_grade(struct Student* f, struct Student* b, int subject_code);
-int compare_grade_avarage(struct Student* f, struct Student* b, int* subject_codes);
-void sort_students_optoin(int option, void* args);
+int compare_grade_avarage(struct Student* f, struct Student* b, int args_length,int* subject_codes);
+void sort_students_optoin(int option, int args_length,void* args);
 
 
 void save_by_file_path(char* path);
@@ -536,7 +536,7 @@ void set_students() {
 	}
 }
 
-int sort_compare_by_option(struct Student* f, struct Student* b,int option, void* args) {
+int sort_compare_by_option(struct Student* f, struct Student* b,int option, int args_length,void* args) {
 	/*
 	* this is sort compare function for descending order
 	* 
@@ -565,7 +565,7 @@ int sort_compare_by_option(struct Student* f, struct Student* b,int option, void
 		return compare_grade(f, b, *(int*)args);
 		break;
 	case COMPARE_GRADE_AVARAGE:
-		return compare_grade_avarage(f, b, (int*)args);
+		return compare_grade_avarage(f, b, args_length,(int*)args);
 		break;
 	default:
 		return str_euc_compare(f->name, b->name);
@@ -586,17 +586,15 @@ int compare_grade(struct Student* f, struct Student* b,int subject_code) {
 	}
 }
 
-int compare_grade_avarage(struct Student* f, struct Student* b, int* subject_codes) {
-	int count = 0;
-	int subject_code;
+int compare_grade_avarage(struct Student* f, struct Student* b, int args_length,int* subject_codes) {
+	
 	float avg_f=0, avg_b = 0;
-	while (subject_code = *(subject_codes + count) != -1) {
-		avg_f += f->grades[subject_code].grade;
-		avg_b += b->grades[subject_code].grade;
-		count++;
+	for (int i = 0; i < args_length; i++) {
+		avg_f += f->grades[subject_codes[i]].grade;
+		avg_b += b->grades[subject_codes[i]].grade;
 	}
-	avg_f /= count;
-	avg_b /= count;
+	avg_f /= args_length;
+	avg_b /= args_length;
 
 	if (avg_f > avg_b) {
 		return 1;
@@ -609,7 +607,7 @@ int compare_grade_avarage(struct Student* f, struct Student* b, int* subject_cod
 	}
 }
 
-void sort_students_optoin(int option, void* args) {
+void sort_students_optoin(int option, int args_length,void* args) {
 	if (!subjects) {
 		printf("you need to set_subjects\n");
 		return;
@@ -626,7 +624,7 @@ void sort_students_optoin(int option, void* args) {
 	//버블 소트
 	for (int i = len-1; i > 0; i--) {
 		for (int j = 0; j < i; j++) {
-			int compare = sort_compare_by_option(&students_array[j], &students_array[j + 1], option, args);
+			int compare = sort_compare_by_option(&students_array[j], &students_array[j + 1], option, args_length, args);
 			if (compare == 1) {
 				struct Student temp;
 				temp = students_array[j];
@@ -646,7 +644,7 @@ int str_euc_compare(char* big, char* small) {
 
 
 	while(big[b_count]  && small[s_count]){
-		if (big[b_count] & 0x80) {
+		if (big[b_count]>>7 == 0) {
 			b_num = (unsigned char)big[b_count];
 			b_num << 8;
 			b_num += (unsigned char)big[b_count + 1];
@@ -657,7 +655,7 @@ int str_euc_compare(char* big, char* small) {
 			b_count += 1;
 		}
 
-		if (small[s_count] & 0x80) {
+		if (small[s_count] >> 7 == 0) {
 			s_num = (unsigned char)small[s_count];
 			s_num << 8;
 			s_num += (unsigned char)small[s_count + 1];
@@ -669,10 +667,10 @@ int str_euc_compare(char* big, char* small) {
 		}
 
 		if (b_num > s_num) {
-			return -1;
+			return 1;
 		}
 		else if (b_num < s_num) {
-			return 1;
+			return -1;
 		}
 	}
 
@@ -844,7 +842,7 @@ int str2int(char* str) {
 
 int isInt(char* str) {
 	int count = 0;
-	while (str + count) {
+	while (str[count]) {
 		if ((str[count] - 48 >= 0 && str[count] - 48 <= 9) || str[count] == '-' || str[count] == '.') {
 
 		}
@@ -860,17 +858,17 @@ int is_sort_arg_right(int option,void* args,int args_length) {
 	int subjects_length = length_linked(subjects);
 	switch (option) {
 	case COMPARE_NAME:
-		return args_length == 1;
+		return args_length == 0;
 		break;
 	case COMPARE_ID:
-		return args_length == 1;
+		return args_length == 0;
 		break;
 	case COMPARE_GRADE:
-		return args_length == 2 && ((int*)args)[1] < subjects_length && ((int*)args)[1] >= 0;
+		return args_length == 1 && ((int*)args)[0] < subjects_length && ((int*)args)[0] >= 0;
 		break;
 	case COMPARE_GRADE_AVARAGE:
-		if (args_length >= 3) {
-			for (int i = 0; i < args_length - 1; i++) {
+		if (args_length >= 2) {
+			for (int i = 0; i < args_length; i++) {
 				if (((int*)args)[i] < subjects_length && ((int*)args)[i] >= 0) {
 
 				}
@@ -944,17 +942,12 @@ void sort_students(char** command_splits,int command_splits_length) {
 		args = 0;
 	}
 	else {
-		tail->next = malloc(sizeof(struct LinkedList));
-		memset(tail->next, 0, sizeof(struct LinkedList));
-		tail = tail->next;
-		tail->data = malloc(sizeof(int));
-		*(int*)tail->data = -1;
-		args = linked2points(args_linked, sizeof(int), args_length);
+		args = linked2points(args_linked, sizeof(int), &args_length);
 		delete_linked(args_linked);
 	}
 
 	if (is_sort_arg_right(code, args, args_length)) {
-		sort_students_optoin(code, args);
+		sort_students_optoin(code, args_length, args);
 	}
 	else {
 		printf("[error]\n");
