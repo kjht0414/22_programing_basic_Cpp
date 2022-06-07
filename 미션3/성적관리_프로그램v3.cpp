@@ -19,6 +19,25 @@ using namespace std;
 
 #define TAB_KEY '	'
 
+/*
+* 성적관리 프로그램 v3
+* 추가된 부분:
+*  1.자동완성 기능. !!!---Tab 키와 화살표, 엔터키로 작동---!!!
+*  2.Grade 클래스를 통한 계산 되는 부분 => 평균 을 추가.
+*  3.명령어 뒤에 인자를 넣도록 함.
+* 
+* 변경점:
+*  1.명령어 앞에 '/' 제거.
+*  2.Command 클래스에 함수포인터를 통하여 명령어가 작동하도록 변경 --> 메인함수 단순화 and 캡슐화?
+*  3.append 를 add 로 변경
+*  
+*/
+
+
+
+
+
+
 class Util {
 public:
 	static vector<string> split(string src, string target) {
@@ -121,14 +140,16 @@ public:
 		this->commands.push_back(this);
 	}
 
-	void commandNext(string name) {
+	Command* commandNext(string name) {
 		Command* child = new Command(name, 0, 0, this);
 		this->children.push_back(child);
+		return child;
 	}
 
-	void commandNext(string name, void (*cmd_fun)(vector<string>, vector<void*>), vector<string> (*auto_args_com)(vector<string>, vector<void*>)) {
+	Command* commandNext(string name, void (*cmd_fun)(vector<string>, vector<void*>), vector<string> (*auto_args_com)(vector<string>, vector<void*>)) {
 		Command* child = new Command(name, cmd_fun, auto_args_com, this);
 		this->children.push_back(child);
+		return child;
 	}
 
 	string getName() {
@@ -447,19 +468,6 @@ public:
 	}
 };
 
-class CalculatedGrade : Grade {
-protected:
-	int (*calculating_method) (vector<int>);
-public:
-	void setGrade(vector<int> subject_list) {
-		this->grade = calculating_method(subject_list);
-	}
-
-	int getGrade() {
-		return grade;
-	}
-};
-
 class Student {
 private:
 	string name;
@@ -552,10 +560,11 @@ class Subject {
 private:
 	int code;
 	string name;
-
 	static vector<Subject*> all_subject;
+protected:
+	bool calculating = false;
 public:
-
+	
 	Subject(int code, string name) {
 		setCode(code);
 		setName(name);
@@ -644,9 +653,77 @@ public:
 		}
 		return 0;
 	}
+
+	bool isCalculating() {
+		return calculating;
+	}
 };
+
+class CalculatedSubject : Subject {
+private:
+	vector<int> calculated_subject_codes;
+	int (*calculating_method) (vector<Subject*>, Student*, vector<int>);
+public:
+	CalculatedSubject(int code, string name, vector<int> calculated_subject_codes) : Subject(code, name) {
+		this->calculated_subject_codes = calculated_subject_codes;
+		this->calculating = true;
+	}
+
+	CalculatedSubject(string name, vector<int> calculated_subject_codes) : Subject(name){
+		this->calculated_subject_codes = calculated_subject_codes;
+		this->calculating = true;
+	}
+
+	int (*getCalculatingMethod()) (vector<Subject*>, Student*, vector<int>) {
+		return calculating_method;
+	}
+
+	vector<int> getCalculatedSubjectCodes() {
+		return calculated_subject_codes;
+	}
+
+	void setCalculatingMethod(int (*calculating_method) (vector<Subject*>, Student*, vector<int>)) {
+		this->calculating_method = calculating_method;
+	}
+
+	bool isCalculating() {
+		return true;
+	}
+};
+
+class CalculatedGrade : Grade {
+protected:
+	int (*calculating_method) (vector<Subject*>, Student*, vector<int>);
+public:
+	void setCalculatingMethod(int (*calculating_method) (vector<Subject*>, Student*, vector<int>)) {
+		this->calculating_method = calculating_method;
+	}
+
+	int getGrade(vector<Subject*> subject_set, Student* student, vector<int> subject_code_list) {
+		if (calculating_method == 0) {
+			return 0;
+		}
+		else {
+			return calculating_method(subject_set, student, subject_code_list);
+		}
+	}
+};
+
 vector<Subject*> Subject::all_subject;
 
+void creat_grade_by_student(Student* stud, Subject* sub) {
+	Grade* grade = 0;
+	if (sub->isCalculating()) {
+		grade = (Grade*)new CalculatedGrade();
+		int (*calculating_method)(vector<Subject*>, Student*, vector<int>) = ((CalculatedSubject*)sub)->getCalculatingMethod();
+		((CalculatedGrade*)grade)->setCalculatingMethod(calculating_method);
+	}
+	else {
+		grade = new Grade();
+		grade->setGrade(0);
+	}
+	stud->setGrade(sub->getCode(), grade);
+}
 
 void cmd_say(vector<string> args, vector<void*> outside_args) {
 	for (string s : args) {
@@ -685,6 +762,14 @@ void cmd_set_subjects(vector<string> args, vector<void*> outside_args) {
 	cout << "과목 목록 초기화 중..." << endl;
 	for (int i = 0; i < subject_set->size(); i++) {
 		Subject* sub = (*subject_set)[subject_set->size() - 1];
+
+		for (Student* stud : *student_set) {
+			Grade* grade = stud->getGrade(sub->getCode());
+			if (grade != 0) {
+				stud->setGrade(sub->getCode(), 0);
+				delete grade;
+			}
+		}
 		subject_set->pop_back();
 		cout << "[" << sub->getCode() << "]" << sub->getName() << " 삭제." << endl;
 		delete sub;
@@ -719,6 +804,12 @@ void cmd_set_subjects(vector<string> args, vector<void*> outside_args) {
 			cin >> name_buf;
 			Subject* sub = new Subject(name_buf);
 			subject_set->push_back(sub);
+		}
+	}
+
+	for (Subject* sub : *subject_set) {
+		for (Student* stud : *student_set) {
+			creat_grade_by_student(stud, sub);
 		}
 	}
 }
@@ -796,8 +887,13 @@ void cmd_modify_subject(vector<string> args, vector<void*> outside_args) {
 	}
 	else if(mode == "code") {
 		if (Util::is_integer(target)) {
+			int prev_code = sub->getCode();
 			sub->setCode(Util::to_integer(modify));
-			//UNDONE: students 의 grades 수정 필요..
+			for (Student* stud : *student_set) {
+				Grade* grade = stud->getGrade(prev_code);
+				stud->setGrade(prev_code, 0);
+				stud->setGrade(sub->getCode(), grade);
+			}
 		}
 		else {
 			cout << modify << "은 정수가 아닙니다." << endl;
@@ -856,12 +952,36 @@ void cmd_add_subjects(vector<string> args, vector<void*> outside_args) {
 	}
 	else {
 		for (string s : args) {
-			subject_set->push_back(new Subject(s));
+			Subject* sub = new Subject(s);
+			subject_set->push_back(sub);
+			for (Student* stud : *student_set) {
+				creat_grade_by_student(stud, sub);
+			}
 		}
 		cout << "추가 완료." << endl;
 	}
 }
 
+void add_students(vector<string> args, vector<void*> outside_args) {
+	vector<Subject*>* subject_set = static_cast<vector<Subject*>*>(outside_args[0]);
+	vector<Student*>* student_set = static_cast<vector<Student*>*>(outside_args[1]);
+
+	if (args.size() <= 0) {
+		cout << "잘못 입력 되었습니다." << endl;
+		cout << "(예시) add students 학생이름_1 학생이름_2 학생이름_3 ..." << endl;
+		return;
+	}
+	else {
+		for (string s : args) {
+			Student* stud = new Student(s);
+			student_set->push_back(stud);
+			for (Subject* sub : *subject_set) {
+				creat_grade_by_student(stud, sub);
+			}
+		}
+		cout << "추가 완료." << endl;
+	}
+}
 
 vector<string> cmd_add_subjects_args(vector<string> args, vector<void*> outside_args) {
 	vector<Subject*>* subject_set = static_cast<vector<Subject*>*>(outside_args[0]);
@@ -900,6 +1020,14 @@ vector<string> cmd_add_subjects_args(vector<string> args, vector<void*> outside_
 }
 
 
+vector<string> cmd_add_students_args(vector<string> args, vector<void*> outside_args) {
+	vector<Subject*>* subject_set = static_cast<vector<Subject*>*>(outside_args[0]);
+	vector<Student*>* student_set = static_cast<vector<Student*>*>(outside_args[1]);
+
+	return { "학생이름" };
+}
+
+
 void cmd_set_students(vector<string> args, vector<void*> outside_args) {
 	vector<Subject*>* subject_set = static_cast<vector<Subject*>*>(outside_args[0]);
 	vector<Student*>* student_set = static_cast<vector<Student*>*>(outside_args[1]);
@@ -914,7 +1042,11 @@ void cmd_set_students(vector<string> args, vector<void*> outside_args) {
 
 	if (args.size() > 0) {
 		for (string arg : args) {
-			student_set->push_back(new Student(arg));
+			Student* stud = new Student(arg);
+			student_set->push_back(stud);
+			for (Subject* sub : *subject_set) {
+				creat_grade_by_student(stud, sub);
+			}
 		}
 	}
 	else {
@@ -956,8 +1088,11 @@ void cmd_students(vector<string> args, vector<void*> outside_args) {
 			if (grade == 0) {
 				cout << "N" << "\t";
 			}
-			else {
+			else if(!sub->isCalculating()) {
 				cout << grade->getGrade() << "\t";
+			}
+			else {
+				cout << ((CalculatedGrade*)grade)->getGrade(*subject_set,student,((CalculatedSubject*)sub)->getCalculatedSubjectCodes()) << "\t";
 			}
 		}
 		cout << endl;
@@ -972,28 +1107,35 @@ void cmd_modify_student(vector<string> args, vector<void*> outside_args){
 		cout << "잘못 입력 되었습니다." << endl;
 		cout << "(예시 0) modify student name 아이디 바꿀이름" << endl;
 		cout << "(예시 1) modify student id 아이디 바꿀아이디" << endl;
-		cout << "(예시 1) modify student subject 과목이름 아이디 바꿀아이디" << endl;
+		cout << "(예시 1) modify student subject 아이디 과목이름_1 점수_1 과목이름_2 점수_2 ..." << endl;
 		return;
 	}
 
 	string mode = args[0];
 	string target = "";
 	string modify = "";
-	string subject_name = "";
+	vector<string> subject_names;
+	vector<string> grade_modifies;
+	target = args[1];
 	if (mode == "name") {
-		target = args[1];
 		modify = args[2];
-
-		
 	}
 	else if (mode == "id") {
-		target = args[1];
 		modify = args[2];
 	}
 	else if (mode == "subject") {
-		subject_name = args[1];
-		target = args[2];
-		modify = args[3];
+		for (int i = 2; i < args.size(); i += 2) {
+			subject_names.push_back(args[i]);
+			if (i + 1 < args.size()) {
+				grade_modifies.push_back(args[i + 1]);
+			}
+			else {
+				cout << "잘못 입력 되었습니다." << endl;
+				cout << subject_names.at(subject_names.size() - 1) << "의 수정할 점수가 입력되지 않았습니다." << endl;
+				return;
+			}
+		}
+		
 	}
 	else {
 		cout << mode << "은 존재하지 않습니다." << endl;
@@ -1021,6 +1163,7 @@ void cmd_modify_student(vector<string> args, vector<void*> outside_args){
 				if (Util::is_integer(modify)) {
 					try {
 						stud->setId(Util::to_integer(modify));
+
 					}
 					catch (invalid_argument& ia) {
 						cerr << "ERROR : " << ia.what() << endl;
@@ -1033,34 +1176,38 @@ void cmd_modify_student(vector<string> args, vector<void*> outside_args){
 				}
 			}
 			else {
-				Subject* sub = 0;
-				if (Util::is_integer(subject_name)) {
-					sub = Subject::getSubjectByCodeFromVec(*subject_set, Util::to_integer(subject_name));
-				}
-				else {
-					sub = Subject::getSubjectByNameFromVec(*subject_set, subject_name);
-				}
-
-				if (sub == 0) {
-					cout << "\'" << subject_name << "\'은 존재하지 않는 과목입니다." << endl;
-					return;
-				}
-
-				if (Util::is_integer(modify)) {
-					
-					Grade* grade = stud->getGrade(sub->getCode());
-					if (grade == 0) {
-						Grade* grade = new Grade();
-						grade->setGrade(Util::to_integer(modify));
-						stud->setGrade(sub->getCode(), grade);
+				for (int i = 0; i < subject_names.size();i++) {
+					string subject_name = subject_names.at(i);
+					string modify = grade_modifies.at(i);
+					Subject* sub = 0;
+					if (Util::is_integer(subject_name)) {
+						sub = Subject::getSubjectByCodeFromVec(*subject_set, Util::to_integer(subject_name));
 					}
 					else {
-						grade->setGrade(Util::to_integer(modify));
+						sub = Subject::getSubjectByNameFromVec(*subject_set, subject_name);
 					}
-				}
-				else {
-					cout << modify << "은 정수가 아닙니다." << endl;
-					return;
+
+					if (sub == 0) {
+						cout << "\'" << subject_name << "\'은 존재하지 않는 과목입니다." << endl;
+						return;
+					}
+
+					if (Util::is_integer(modify)) {
+
+						Grade* grade = stud->getGrade(sub->getCode());
+						if (grade == 0) {
+							Grade* grade = new Grade();
+							grade->setGrade(Util::to_integer(modify));
+							stud->setGrade(sub->getCode(), grade);
+						}
+						else {
+							grade->setGrade(Util::to_integer(modify));
+						}
+					}
+					else {
+						cout << modify << "은 정수가 아닙니다." << endl;
+						return;
+					}
 				}
 			}
 		}
@@ -1070,6 +1217,275 @@ void cmd_modify_student(vector<string> args, vector<void*> outside_args){
 		return;
 	}
 }
+
+vector<string> cmd_modify_student_args(vector<string> args, vector<void*> outside_args) {
+	vector<Subject*>* subject_set = static_cast<vector<Subject*>*>(outside_args[0]);
+	vector<Student*>* student_set = static_cast<vector<Student*>*>(outside_args[1]);
+
+	if (!isArgsAutoComed(args, 0, { "name", "id", "subject" })) {
+		return { "name", "id", "subject" };
+	}
+	else if (!isArgsAutoComed(args, 1, { "바꿀_학생의_아이디" })) {
+		return {};
+	}
+	else if (args.at(0) == "name" or args.at(0) == "id") {
+		if (!isArgsAutoComed(args, 2, { "바꿀_이름or아이디" })) {
+			return {};
+		}
+	}
+	else if (args.at(0) == "subject") {
+		vector<string> subjects_names;
+		for (Subject* sub : *subject_set) {
+			subjects_names.push_back(sub->getName());
+		}
+
+		if (!isArgsAutoComed(args, 1, subjects_names)) {
+			return subjects_names;
+		}
+		for (int i = 2; i < args.size(); i += 2) {
+			if (!isArgsAutoComed(args, i, { "과목이름" })) {
+				return {};//TODO:과목 리스트 구해서 넣기
+			}
+			else if (!isArgsAutoComed(args, i + 1, { "바꿀_이름or아이디" })) {
+				return {};
+			}
+		}
+	}
+
+
+}
+
+int calculating_method_avg(vector<Subject*> subject_set, Student* stud, vector<int> subject_code_set) {
+	int avg = 0, count = 0;
+	for (int code : subject_code_set) {
+		Grade* grade = stud->getGrade(code);
+		if (grade != 0) {
+			avg += grade->getGrade();
+			count++;
+		}
+	}
+
+	if (count > 0) {
+		avg /= count;
+		return avg;
+	}
+	return -1;
+}
+
+void cmd_add_calculated_subjects(vector<string> args, vector<void*> outside_args) {
+	vector<Subject*>* subject_set = static_cast<vector<Subject*>*>(outside_args[0]);
+	vector<Student*>* student_set = static_cast<vector<Student*>*>(outside_args[1]);
+
+	if (args.size() <= 1) {
+		cout << "잘못 입력 되었습니다." << endl;
+		cout << "(예시) add avg subjects 과목이름 계산될_과목이름_1 계산될_과목이름_2 ..." << endl;//TODO: 다른 계산 식에대하여 생각
+
+		return;
+	}
+	else {
+		string sub_name = args[0];
+		vector<int> code_list;
+		for (Subject* sub : *subject_set) {
+			
+		}
+		for (int i = 1; i < args.size(); i++) {
+			if (Util::is_integer(args[i])) {
+				int code = Util::to_integer(args[i]);
+				bool isExist = false;
+				for (Subject* sub : *subject_set) {
+					if (sub->getCode() == code) {
+						code_list.push_back(code);
+						isExist = true;
+						break;
+					}
+				}
+				if (!isExist) {
+					cout << "\'" << code << "\'은 존재하지 않는 과목코드입니다." << endl;
+					return;
+				}
+			}
+			else {
+				bool isExist = false;
+				for (Subject* sub : *subject_set) {
+					
+					if (sub->getName() == args[i]) {
+						code_list.push_back(sub->getCode());
+						isExist = true;
+						break;
+					}
+				}
+				if (!isExist) {
+					cout << "\'" << args[i] << "\'은 존재하지 않는 과목입니다." << endl;
+					return;
+				}
+			}
+		}
+
+		if (code_list.size() > 0) {
+			CalculatedSubject* c_sub = new CalculatedSubject(sub_name, code_list);
+			c_sub->setCalculatingMethod(calculating_method_avg);
+
+			subject_set->push_back((Subject*)c_sub);
+			for (Student* stud : *student_set) {
+				creat_grade_by_student(stud, (Subject*)c_sub);
+			}
+		}
+		else {
+			cout << "계산된 과목이 없습니다." << endl;
+			return;
+		}
+		cout << "추가 완료." << endl;
+	}
+}
+
+vector<string> cmd_add_calculated_subjects_args(vector<string> args, vector<void*> outside_args) {
+	vector<Subject*>* subject_set = static_cast<vector<Subject*>*>(outside_args[0]);
+	vector<Student*>* student_set = static_cast<vector<Student*>*>(outside_args[1]);
+
+	if (!isArgsAutoComed(args, 0, { "avg" })) {
+		return { "avg" };
+	}
+	
+	vector<string> subject_name_set;
+
+	for (Subject* sub : *subject_set) {
+		subject_name_set.push_back(sub->getName());
+	}
+
+	if (!isArgsAutoComed(args, args.size()-1, subject_name_set)) {
+		return subject_name_set;
+	}
+}
+
+
+void cmd_delete_subjects(vector<string> args, vector<void*> outside_args) {
+	vector<Subject*>* subject_set = static_cast<vector<Subject*>*>(outside_args[0]);
+	vector<Student*>* student_set = static_cast<vector<Student*>*>(outside_args[1]);
+
+	if (args.size() <= 0) {
+		cout << "잘못 입력 되었습니다." << endl;
+		cout << "(예시) delete subjects 과목이름_1 과목이름_2 과목이름_3 ..." << endl;
+		return;
+	}
+
+	for (string arg : args) {
+		Subject* subject = 0;
+		if (Util::is_integer(arg)) {
+			//code
+			int code = Util::to_integer(arg);
+			for (Subject* sub : *subject_set) {
+				if (sub->getCode() == code) {
+					subject = sub;
+				}
+			}
+		}
+		else {
+			//name
+			for (Subject* sub : *subject_set) {
+				if (sub->getName() == arg) {
+					subject = sub;
+				}
+			}
+		}
+
+		if (subject == 0) {
+			//error
+			cout << "\'" << arg << "\'은 존재하지 않는 과목 또는 과목코드 입니다." << endl;
+			return;
+		}
+
+		for (int i = 0; i < subject_set->size(); i++) {
+			if (subject_set->at(i) == subject) {
+				int sub_code = subject->getCode();
+				string sub_name = subject->getName();
+				subject_set->erase(subject_set->begin() + i);
+				cout << "[" << sub_code << "]" << sub_name << "가 삭제되었습니다." << endl;
+				delete subject;
+				break;
+			}
+		}
+	}
+}
+
+vector<string> cmd_delete_subjects_args(vector<string> args, vector<void*> outside_args) {
+	vector<Subject*>* subject_set = static_cast<vector<Subject*>*>(outside_args[0]);
+	vector<Student*>* student_set = static_cast<vector<Student*>*>(outside_args[1]);
+
+	vector<string> auto_args_list;
+
+	for (Subject* sub : *subject_set) {
+		bool isExist = false;
+		for (string arg : args) {
+			bool isNum = Util::is_integer(arg);
+			if ((isNum && sub->getCode() == Util::to_integer(arg)) || sub->getName() == arg) {
+				isExist = true;
+				break;
+			}
+		}
+
+		if (!isExist) {
+			auto_args_list.push_back(sub->getName());
+		}
+	}
+
+	if (!isArgsAutoComed(args, args.size(), auto_args_list)) {
+		return auto_args_list;
+	}
+	return {};
+}
+
+void cmd_delete_students(vector<string> args, vector<void*> outside_args) {
+	vector<Subject*>* subject_set = static_cast<vector<Subject*>*>(outside_args[0]);
+	vector<Student*>* student_set = static_cast<vector<Student*>*>(outside_args[1]);
+
+	if (args.size() <= 0) {
+		cout << "잘못 입력 되었습니다." << endl;
+		cout << "(예시) delete students 학생코드_1 학생코드_2 학생코드_3 ..." << endl;
+		return;
+	}
+
+	for (string arg : args) {
+		Student* student = 0;
+		if (Util::is_integer(arg)) {
+			//code
+			int code = Util::to_integer(arg);
+			for (Student* stud : *student_set) {
+				if (stud->getId() == code) {
+					student = stud;
+				}
+			}
+		}
+		else {
+			//error
+			cout << "\'" << arg << "\'은 정수가 아닙니다." << endl;
+			return;
+		}
+
+		if (student == 0) {
+			//error
+			cout << "\'" << arg << "\'은 존재하지 않는 과목 또는 과목코드 입니다." << endl;
+			return;
+		}
+
+
+		for (int i = 0; i < student_set->size(); i++) {
+			if (student_set->at(i) == student) {
+				int stud_id = student->getId();
+				string stud_name = student->getName();
+				student_set->erase(student_set->begin() + i);
+				cout << "[" << stud_id << "]" << stud_name << "가 삭제되었습니다." << endl;
+				delete student;
+				break;
+			}
+		}
+	}
+}
+
+vector<string> cmd_delete_students_args(vector<string> args, vector<void*> outside_args) {
+	return { "학생코드" };
+}
+
+
 
 
 int main() {
@@ -1084,12 +1500,19 @@ int main() {
 
 	Command C_modify("modify");
 	C_modify.commandNext("subject", cmd_modify_subject, cmd_modify_subject_args);
-	C_modify.commandNext("student", cmd_modify_student, 0);
+	C_modify.commandNext("student", cmd_modify_student, cmd_modify_student_args);
 
 	Command C_add("add");
 	C_add.commandNext("subjects", cmd_add_subjects, cmd_add_subjects_args);
+	Command* C_calculated = C_add.commandNext("avg");//TODO: 변경
+	C_calculated->commandNext("subjects", cmd_add_calculated_subjects, cmd_add_calculated_subjects_args);
+	C_add.commandNext("students", add_students, cmd_add_students_args);//TODO:
 
+	Command C_delete("delete");
+	C_delete.commandNext("subjects", cmd_delete_subjects, cmd_delete_subjects_args);
+	C_delete.commandNext("students", cmd_delete_students, cmd_delete_students_args);
 
+	
 	string cmd_line;
 
 	CommandLine cl;
