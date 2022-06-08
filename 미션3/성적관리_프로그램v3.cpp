@@ -5,7 +5,10 @@
 #include<sstream>
 #include<map>
 #include<algorithm>
+#include<fstream>
+
 using namespace std;
+
 
 #define SPECIAL_KEY 0xE0
 #define FUNCTION_KEY 0x00
@@ -483,6 +486,12 @@ public:
 		all_student.push_back(this);
 	}
 
+	Student(int id,string name) {
+		setName(name);
+		setId(id);
+		all_student.push_back(this);
+	}
+
 	~Student() {
 		int index = 0;
 		for (Student* stud : all_student) {
@@ -551,6 +560,15 @@ public:
 	}
 
 	static bool compareByID(Student* a, Student* b) {
+		return a->getId() < b->getId();
+	}
+
+	static bool compareByName(Student* a, Student* b) {
+		return a->getId() < b->getId();//TODO:remake
+	}
+
+	
+	static bool compareBySubject(Student* a, Student* b, vector<int> subject_codes) {
 		return a->getId() < b->getId();
 	}
 };
@@ -1352,7 +1370,7 @@ vector<string> cmd_add_calculated_subjects_args(vector<string> args, vector<void
 		subject_name_set.push_back(sub->getName());
 	}
 
-	if (!isArgsAutoComed(args, args.size()-1, subject_name_set)) {
+	if (!isArgsAutoComed(args, args.size(), subject_name_set)) {
 		return subject_name_set;
 	}
 }
@@ -1399,6 +1417,15 @@ void cmd_delete_subjects(vector<string> args, vector<void*> outside_args) {
 				int sub_code = subject->getCode();
 				string sub_name = subject->getName();
 				subject_set->erase(subject_set->begin() + i);
+
+				for (Student* stud : *student_set) {
+					Grade* grade = stud->getGrade(sub_code);
+					if (grade != 0) {
+						stud->setGrade(sub_code, 0);
+						delete grade;
+					}
+				}
+
 				cout << "[" << sub_code << "]" << sub_name << "가 삭제되었습니다." << endl;
 				delete subject;
 				break;
@@ -1486,6 +1513,274 @@ vector<string> cmd_delete_students_args(vector<string> args, vector<void*> outsi
 }
 
 
+void cmd_save(vector<string> args, vector<void*> outside_args) {
+	vector<Subject*>* subject_set = static_cast<vector<Subject*>*>(outside_args[0]);
+	vector<Student*>* student_set = static_cast<vector<Student*>*>(outside_args[1]);
+
+	//subject(name:xx,code:xx)
+	//calculated subject(name:xx,code:xx,fun:xx,args:[...])
+	// 
+	//student(name:xx,id:xx)
+	//
+	//grade_ID(XX:00,XX:00)
+
+	if (args.size() == 0) {
+		cout << "파일 위치를 입력하지 않았습니다." << endl;
+		return;
+	}
+
+	string file_path = args[0];
+
+	ofstream writeFile(file_path.data());
+	if (writeFile.is_open()) {
+
+		//subject phase start
+		for (Subject* sub : *subject_set) {
+			if (!sub->isCalculating()) {
+				writeFile << "subject";
+				writeFile << "(";
+				writeFile << "name:" << sub->getName() << ",";
+				writeFile << "code:" << sub->getCode();
+				writeFile << ")" << endl;
+			}
+			else {
+				writeFile << "calculated subject";
+				writeFile << "(";
+				writeFile << "name:" << sub->getName() << ",";
+				writeFile << "code:" << sub->getCode() << ",";
+				writeFile << "fun:" << "avg" << ",";
+				writeFile << "args:" << "[";
+
+				vector<string> subject_codes_string;
+				for (int code : ((CalculatedSubject*)sub)->getCalculatedSubjectCodes()) {
+					subject_codes_string.push_back(to_string(code));
+				}
+
+				writeFile << Util::join(subject_codes_string, "/");
+				writeFile << "]";
+				writeFile << ")" << endl;
+			}
+		}
+		//subject phase end
+
+		//student phase start
+		for (Student* stud : *student_set) {
+			writeFile << "student";
+			writeFile << "(";
+			writeFile << "name:" << stud->getName() << ",";
+			writeFile << "id:" << stud->getId();
+			writeFile << ")" << endl;
+		}	
+		//student phase end
+
+		//grade phase start
+		for (Student* stud : *student_set) {
+			writeFile << "grade_" << stud->getId();
+			writeFile << "(";
+			vector<string> grade_data_string;
+			for (Subject* sub : *subject_set) {
+				string s = "";
+				if (!sub->isCalculating()) {
+					s = to_string(sub->getCode()) + ":" + to_string(stud->getGrade(sub->getCode())->getGrade());
+				}
+				else {
+					s = to_string(sub->getCode()) + ":N";
+				}
+
+				grade_data_string.push_back(s);
+			}
+
+			writeFile << Util::join(grade_data_string, ",");
+
+			writeFile << ")" << endl;
+		}
+		//grade phase end
+
+		writeFile.close();
+
+		cout << "저장 완료." << endl;
+	}
+	else {
+		cout << "파일을 열수 없습니다." << endl;
+		return;
+	}
+}
+
+
+vector<string> cmd_save_args(vector<string> args, vector<void*> outside_args) {
+	vector<Subject*>* subject_set = static_cast<vector<Subject*>*>(outside_args[0]);
+	vector<Student*>* student_set = static_cast<vector<Student*>*>(outside_args[1]);
+
+	return {"D:\save_1.txt"};
+}
+
+void cmd_load(vector<string> args, vector<void*> outside_args) {
+	vector<Subject*>* subject_set = static_cast<vector<Subject*>*>(outside_args[0]);
+	vector<Student*>* student_set = static_cast<vector<Student*>*>(outside_args[1]);
+
+	if (args.size() == 0) {
+		cout << "파일 위치를 입력하지 않았습니다." << endl;
+		return;
+	}
+
+	string file_path = args[0];
+
+	ifstream readFile(file_path.data());
+	if (readFile.is_open()) {
+		for (Student* stud : *student_set) {
+			for (Subject* sub : *subject_set) {
+				Grade* grade = stud->getGrade(sub->getCode());
+				delete grade;
+				stud->setGrade(sub->getCode(), 0);
+			}
+		}
+
+		for (int i = 0; i < student_set->size(); i++) {
+			Student* student = (*student_set)[student_set->size() - 1];
+			student_set->pop_back();
+			delete student;
+		}
+
+		for (int i = 0; i < subject_set->size(); i++) {
+			Subject* sub = (*subject_set)[subject_set->size() - 1];
+			subject_set->pop_back();
+			delete sub;
+		}
+
+		cout << "전 데이터 삭제 완료." << endl;
+
+		string line;
+		while (getline(readFile, line)) {
+			if (line.find("subject") == 0) {
+				int front_len = string("subject").size();
+				string bracket = line.substr(front_len + 1, line.size() - front_len - 2);
+				vector<string> data = Util::split(bracket, ",");
+				map<string, string> data_map;
+				for (string s : data) {
+					vector<string> ele = Util::split(s, ":");
+					data_map[ele.at(0)] = ele.at(1);
+				}
+				string name = data_map["name"];
+				int code = Util::to_integer(data_map["code"]);
+
+				Subject* sub = new Subject(code, name);
+
+				subject_set->push_back(sub);
+			}
+			else if (line.find("calculated subject") == 0) {
+				int front_len = string("calculated subject").size();
+				string bracket = line.substr(front_len + 1, line.size() - front_len - 2);
+				vector<string> data = Util::split(bracket, ",");
+				map<string, string> data_map;
+				for (string s : data) {
+					vector<string> ele = Util::split(s, ":");
+					data_map[ele.at(0)] = ele.at(1);
+				}
+
+				string name = data_map["name"];
+				string fun_name = data_map["fun"];
+				string args_str = data_map["args"];
+				int code = Util::to_integer(data_map["code"]);
+				vector<int> args;
+				for (string arg_str : Util::split(args_str.substr(1, args_str.size() - 2), "/")) {
+					args.push_back(Util::to_integer(arg_str));
+				}
+				
+				Subject* sub = (Subject*)new CalculatedSubject(code, name, args);
+
+				subject_set->push_back(sub);
+			}
+			else if (line.find("student") == 0) {
+				int front_len = string("student").size();
+				string bracket = line.substr(front_len + 1, line.size() - front_len - 2);
+				vector<string> data = Util::split(bracket, ",");
+				map<string, string> data_map;
+				for (string s : data) {
+					vector<string> ele = Util::split(s, ":");
+					data_map[ele.at(0)] = ele.at(1);
+				}
+
+				string name = data_map["name"];
+				int id = Util::to_integer(data_map["id"]);
+
+				Student* stud = new Student(id, name);
+
+				student_set->push_back(stud);
+			}
+			else if (line.find("grade") == 0) {
+				int front_len = string("grade").size();
+				string sub_id_str = line.substr(front_len + 1, line.find("(") - front_len - 1);
+				front_len += sub_id_str.size() + 1;
+				int stud_id = Util::to_integer(sub_id_str);
+				Student* student = 0;
+				for (Student* stud : *student_set) {
+					if (stud->getId() == stud_id) {
+						student = stud;
+						break;
+					}
+				}
+
+				if (student == 0) {
+					cout << "error:" << line << endl;
+					continue;
+				}
+
+				string bracket = line.substr(front_len + 1, line.size() - front_len - 2);
+				vector<string> data = Util::split(bracket, ",");
+				map<string, string> data_map;
+				for (string s : data) {
+					vector<string> ele = Util::split(s, ":");
+					data_map[ele.at(0)] = ele.at(1);
+				}
+
+				for (Subject* sub : *subject_set) {
+					string sub_data = data_map[to_string(sub->getCode())];
+					if (Util::is_integer(sub_data)) {
+						Grade* grade = new Grade();
+						grade->setGrade(Util::to_integer(sub_data));
+						student->setGrade(sub->getCode(), grade);
+					}
+					else {
+						CalculatedGrade* grade = new CalculatedGrade();
+						grade->setCalculatingMethod(((CalculatedSubject*)sub)->getCalculatingMethod());
+						student->setGrade(sub->getCode(), (Grade*)grade);
+					}
+				}
+			}
+		}
+
+		cout << "불러오기 완료." << endl;
+	}
+	else {
+		cout << "파일을 열수 없습니다." << endl;
+		return;
+	}
+
+	
+
+
+}
+
+
+void cmd_sort_students(vector<string> args, vector<void*> outside_args) {
+	vector<Subject*>* subject_set = static_cast<vector<Subject*>*>(outside_args[0]);
+	vector<Student*>* student_set = static_cast<vector<Student*>*>(outside_args[1]);
+
+	if (args.size() == 0) {
+		//TODO: error message
+		return;
+	}
+	string type = args.at(0);
+	if (type == "id") {
+
+	}
+	else if (type == "name") {
+
+	}
+	else if (type == "subjects") {
+		sort(student_set->begin(), student_set->end(), [](Student* a, Student* b) {return Student::compareBySubject(a, b,{}); });
+	}
+}
 
 
 int main() {
@@ -1504,7 +1799,7 @@ int main() {
 
 	Command C_add("add");
 	C_add.commandNext("subjects", cmd_add_subjects, cmd_add_subjects_args);
-	Command* C_calculated = C_add.commandNext("avg");//TODO: 변경
+	Command* C_calculated = C_add.commandNext("calculated");//TODO: 변경
 	C_calculated->commandNext("subjects", cmd_add_calculated_subjects, cmd_add_calculated_subjects_args);
 	C_add.commandNext("students", add_students, cmd_add_students_args);//TODO:
 
@@ -1512,6 +1807,9 @@ int main() {
 	C_delete.commandNext("subjects", cmd_delete_subjects, cmd_delete_subjects_args);
 	C_delete.commandNext("students", cmd_delete_students, cmd_delete_students_args);
 
+	Command C_save("save", cmd_save, cmd_save_args);
+
+	Command C_load("load", cmd_load, cmd_save_args);
 	
 	string cmd_line;
 
