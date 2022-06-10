@@ -461,6 +461,7 @@ public:
 class Grade {
 protected:
 	int grade;
+	bool calculating = false;
 public:
 	void setGrade(int grade) {
 		this->grade = grade;
@@ -468,6 +469,113 @@ public:
 
 	int getGrade() {
 		return grade;
+	}
+
+	bool isCalculating() {
+		return calculating;
+	}
+};
+
+class Subject {
+private:
+	int code;
+	string name;
+	static vector<Subject*> all_subject;
+protected:
+	bool calculating = false;
+public:
+
+	Subject(int code, string name) {
+		setCode(code);
+		setName(name);
+
+		all_subject.push_back(this);
+	}
+
+	Subject(string name) {
+		setCode(getUseableCode());
+		setName(name);
+
+		all_subject.push_back(this);
+	}
+
+	~Subject() {
+		int index = 0;
+		for (Subject* sbj : all_subject) {
+			if (sbj->getCode() == code) {
+				break;
+			}
+			index++;
+		}
+
+		all_subject.erase(all_subject.begin() + index);
+	}
+
+	inline bool operator< (Subject& sub) {
+		return this->getCode() < sub.getCode();
+	}
+
+	void setCode(int code) {
+		for (Subject* sbj : all_subject) {
+			if (code == sbj->getCode()) {
+				throw invalid_argument("Subject(" + sbj->getName() + ") already has code:" + to_string(code) + ".");
+			}
+		}
+
+		this->code = code;
+		for (Subject* sbj : all_subject) {
+			if (sbj == this) {
+				sort(all_subject.begin(), all_subject.end());
+				break;
+			}
+		}
+	}
+
+	int getCode() {
+		return code;
+	}
+
+	void setName(string name) {
+		this->name = name;
+	}
+
+	string getName() {
+		return name;
+	}
+
+	static int getUseableCode() {
+		int code = 0;
+		for (Subject* sbj : all_subject) {
+			int sbj_code = sbj->getCode();
+			code++;
+			if (sbj_code > code - 1) {
+				break;
+			}
+		}
+
+		return code;
+	}
+
+	static Subject* getSubjectByCodeFromVec(vector<Subject*> list, int code) {
+		for (Subject* sub : list) {
+			if (sub->getCode() == code) {
+				return sub;
+			}
+		}
+		return 0;
+	}
+
+	static Subject* getSubjectByNameFromVec(vector<Subject*> list, string name) {
+		for (Subject* sub : list) {
+			if (sub->getName() == name) {
+				return sub;
+			}
+		}
+		return 0;
+	}
+
+	bool isCalculating() {
+		return calculating;
 	}
 };
 
@@ -563,119 +671,26 @@ public:
 		return a->getId() < b->getId();
 	}
 
-	static bool compareByName(Student* a, Student* b) {
-		return a->getId() < b->getId();//TODO:remake
+	static bool compareById(Student* a, Student* b , bool reverse) {
+		if(!reverse)
+			return a->getId() < b->getId();
+		else
+			return a->getId() > b->getId();
+	}
+
+	static bool compareByName(Student* a, Student* b, bool reverse) {
+		if (!reverse)
+			return a->getName() < b->getName();
+		else
+			return a->getName() > b->getName();
 	}
 
 	
-	static bool compareBySubject(Student* a, Student* b, vector<int> subject_codes) {
-		return a->getId() < b->getId();
-	}
+	static bool compareBySubject(Student* a, Student* b, vector<Subject*>* subject_set, vector<int> subject_codes, bool reverse);
 };
 vector<Student*> Student::all_student;
 
-class Subject {
-private:
-	int code;
-	string name;
-	static vector<Subject*> all_subject;
-protected:
-	bool calculating = false;
-public:
-	
-	Subject(int code, string name) {
-		setCode(code);
-		setName(name);
 
-		all_subject.push_back(this);
-	}
-
-	Subject(string name) {
-		setCode(getUseableCode());
-		setName(name);
-
-		all_subject.push_back(this);
-	}
-
-	~Subject() {
-		int index = 0;
-		for (Subject* sbj : all_subject) {
-			if (sbj->getCode() == code) {
-				break;
-			}
-			index++;
-		}
-
-		all_subject.erase(all_subject.begin() + index);
-	}
-
-	inline bool operator< (Subject& sub) {
-		return this->getCode() < sub.getCode();
-	}
-
-	void setCode(int code) {
-		for (Subject* sbj : all_subject) {
-			if (code == sbj->getCode()) {
-				throw invalid_argument("Subject(" + sbj->getName() + ") already has code:" + to_string(code) + ".");
-			}
-		}
-
-		this->code = code;
-		for (Subject* sbj : all_subject) {
-			if (sbj == this) {
-				sort(all_subject.begin(), all_subject.end());
-				break;
-			}
-		}
-	}
-
-	int getCode() {
-		return code;
-	}
-
-	void setName(string name) {
-		this->name = name;
-	}
-
-	string getName() {
-		return name;
-	}
-
-	static int getUseableCode() {
-		int code = 0;
-		for (Subject* sbj : all_subject) {
-			int sbj_code = sbj->getCode();
-			code++;
-			if (sbj_code > code - 1) {
-				break;
-			}
-		}
-
-		return code;
-	}
-
-	static Subject* getSubjectByCodeFromVec(vector<Subject*> list, int code) {
-		for (Subject* sub : list) {
-			if (sub->getCode() == code) {
-				return sub;
-			}
-		}
-		return 0;
-	}
-
-	static Subject* getSubjectByNameFromVec(vector<Subject*> list, string name) {
-		for (Subject* sub : list) {
-			if (sub->getName() == name) {
-				return sub;
-			}
-		}
-		return 0;
-	}
-
-	bool isCalculating() {
-		return calculating;
-	}
-};
 
 class CalculatedSubject : Subject {
 private:
@@ -708,11 +723,16 @@ public:
 		return true;
 	}
 };
+vector<Subject*> Subject::all_subject;
 
 class CalculatedGrade : Grade {
 protected:
 	int (*calculating_method) (vector<Subject*>, Student*, vector<int>);
 public:
+	CalculatedGrade() : Grade() {
+		this->calculating = true;
+	}
+
 	void setCalculatingMethod(int (*calculating_method) (vector<Subject*>, Student*, vector<int>)) {
 		this->calculating_method = calculating_method;
 	}
@@ -727,7 +747,42 @@ public:
 	}
 };
 
-vector<Subject*> Subject::all_subject;
+
+bool Student::compareBySubject(Student* a, Student* b, vector<Subject*>* subject_set, vector<int> subject_codes, bool reverse) {
+	int sum[] = { 0,0 };
+
+	for (int i = 0; i < 2; i++) {
+		for (int code : subject_codes) {
+			Grade* grade = a->getGrade(code);
+			if (grade != 0) {
+				if (!grade->isCalculating()) {
+					sum[i] += grade->getGrade();
+				}
+				else {
+					Subject* subject = 0;
+					for (Subject* sub : *subject_set) {
+						if (sub->getCode() == code) {
+							subject = sub;
+							break;
+						}
+					}
+					if (subject != 0 and subject->isCalculating()) {
+						sum[i] += ((CalculatedGrade*)grade)->getGrade(*subject_set, i == 0 ? a : b, ((CalculatedSubject*)subject)->getCalculatedSubjectCodes());
+					}
+					else {
+						continue;
+					}
+				}
+			}
+		}
+	}
+
+	if (!reverse)
+		return  sum[0] < sum[1];
+	else
+		return sum[0] > sum[1];
+}
+
 
 void creat_grade_by_student(Student* stud, Subject* sub) {
 	Grade* grade = 0;
@@ -1490,7 +1545,7 @@ void cmd_delete_students(vector<string> args, vector<void*> outside_args) {
 
 		if (student == 0) {
 			//error
-			cout << "\'" << arg << "\'은 존재하지 않는 과목 또는 과목코드 입니다." << endl;
+			cout << "\'" << arg << "\'은 존재하지 않는 학생 또는 학생아이디 입니다." << endl;
 			return;
 		}
 
@@ -1771,17 +1826,172 @@ void cmd_sort_students(vector<string> args, vector<void*> outside_args) {
 		return;
 	}
 	string type = args.at(0);
-	if (type == "id") {
+	bool rev = false;
 
+	vector<int> subjectcodes;
+
+	if (type == "id" or type == "name") {
+		if (args.size() >= 2 and (args.at(1) == "reverse" or args.at(1) == "r")) {
+			rev = true;
+		}
+	}
+	else if(type == "subjects") {
+		for (int index = 1; index < args.size(); index++) {
+			string arg = args.at(index);
+			Subject* subject = 0;
+			if (Util::is_integer(arg)) {
+				int code = Util::to_integer(arg);
+				for (Subject* sub : *subject_set) {
+					if (code == sub->getCode()) {
+						subject = sub;
+						break;
+					}
+				}
+			}
+			else {
+				for (Subject* sub : *subject_set) {
+					if (arg == sub->getName()) {
+						subject = sub;
+						break;
+					}
+				}
+			}
+
+			if (subject != 0) {
+				bool isExist = false;
+				for (Subject* sub : *subject_set) {
+					if (sub->getCode() == subject->getCode()) {
+						isExist = true;
+						break;
+					}
+				}
+				if(!isExist)
+					subjectcodes.push_back(subject->getCode());
+				else {
+					if (arg == "reverse" or arg == "r") {
+						rev = true;
+					}
+				}
+			}
+			else {
+				cout << "\'" << arg << "\'은 존재하지 않는 타입 입니다." << endl;
+				return;
+			}
+		}
+	}
+	else {
+		cout << "\'" << type << "\'은 존재하지 않는 과목 또는 과목코드 입니다." << endl;
+		return;
+	}
+
+	if (type == "id") {
+		sort(student_set->begin(), student_set->end(), [rev](Student* a, Student* b) {return Student::compareById(a, b, rev); });
 	}
 	else if (type == "name") {
-
+		sort(student_set->begin(), student_set->end(), [rev](Student* a, Student* b) {return Student::compareByName(a, b, rev); });
 	}
 	else if (type == "subjects") {
-		sort(student_set->begin(), student_set->end(), [](Student* a, Student* b) {return Student::compareBySubject(a, b,{}); });
+		sort(student_set->begin(), student_set->end(), [subject_set, subjectcodes, rev](Student* a, Student* b) {return Student::compareBySubject(a, b, subject_set, subjectcodes, rev); });
 	}
 }
 
+vector<string> cmd_sort_students_args(vector<string> args, vector<void*> outside_args) {
+	vector<Subject*>* subject_set = static_cast<vector<Subject*>*>(outside_args[0]);
+	vector<Student*>* student_set = static_cast<vector<Student*>*>(outside_args[1]);
+
+	if (!isArgsAutoComed(args, 0, { "id","name","subjects" })) {
+		return { "id","name","subjects" };
+	}
+	else if(args.at(0) == "id" or args.at(0) == "name") {
+		if (!isArgsAutoComed(args, 1, { "r","reverse" })) {
+			return { "r","reverse" };
+		}
+		else {
+			return{};
+		}
+	}
+	else if (args.at(0) == "subjects") {
+		vector<Subject*> subject_copy_set;
+		for (Subject* sub : *subject_set) {
+			subject_copy_set.push_back(sub);
+		}
+
+		for (int index = 1; index < args.size(); index++) {
+			Subject* subject = 0;
+			string arg = args.at(index);
+			bool isInt = Util::is_integer(arg);
+			for (Subject* sub : *subject_set) {
+				if ((isInt and sub->getCode() == Util::to_integer(arg)) or (!isInt and sub->getName() == arg)) {
+					subject = sub;
+				}
+			}
+
+			if (subject != 0) {
+				for (int i = 0; i < subject_copy_set.size(); i++) {
+					if (subject_copy_set.at(i) == subject) {
+						subject_copy_set.erase(subject_copy_set.begin() + i);
+					}
+				}
+			}
+		}
+
+		vector<string> sub_name_set;
+		for (int i = 0; i < subject_copy_set.size(); i++) {
+			sub_name_set.push_back(subject_copy_set.at(i)->getName());
+		}
+
+		sub_name_set.push_back("r");
+		sub_name_set.push_back("reverse");
+
+		if (!isArgsAutoComed(args, args.size(), sub_name_set)) {
+			return sub_name_set;
+		}
+		else {
+			return { "r","reverse" };
+		}
+	}
+	else {
+		return{};
+	}
+}
+
+void print_help(Command* cmd, string front) {
+	front += cmd->getName();
+	front += " ";
+	for (Command* child : cmd->getChildren()) {
+		print_help(child, front);
+	}
+	if (cmd->getChildren().size() == 0) {
+		cout << front ;
+		if (cmd->isArgsCompletable()) {
+			cout << " [파라미터 존재]";
+		}
+		cout << endl;
+	}
+}
+
+void cmd_help(vector<string> args, vector<void*> outside_args) {
+	int segment_len = 15;
+	vector<Command*> commands = Command::getCommands();
+	for (int i = 0; i < segment_len; i++)
+		cout << "=";
+	cout << "help";
+	for (int i = 0; i < segment_len; i++)
+		cout << "=";
+	cout << endl;
+	for (Command* cmd : commands) {
+		print_help(cmd, "");
+	}
+	for (int i = 0; i < segment_len; i++)
+		cout << "=";
+	cout << "====";
+	for (int i = 0; i < segment_len; i++)
+		cout << "=";
+	cout << endl;
+
+	cout << "Tab 키로 자동완성을 활성화 할수 있습니다." << endl;
+	cout << "위 아래 화살표 키로 이동하고 엔터키로 선택합니다." << endl;
+}
 
 int main() {
 	
@@ -1811,6 +2021,12 @@ int main() {
 
 	Command C_load("load", cmd_load, cmd_save_args);
 	
+	Command C_sort("sort");
+	C_sort.commandNext("students", cmd_sort_students, cmd_sort_students_args);
+
+	Command C_help("help", cmd_help, 0);
+	
+
 	string cmd_line;
 
 	CommandLine cl;
